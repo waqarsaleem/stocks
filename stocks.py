@@ -10,7 +10,8 @@ from oauth2client import file, client, tools
 # For plotting
 import matplotlib.pyplot as plt
 from matplotlib.dates import (MONTHLY, DateFormatter,
-                              rrulewrapper, RRuleLocator)
+                              rrulewrapper, RRuleLocator,
+                              num2date)
 from matplotlib.widgets import CheckButtons
 
 import numpy as np
@@ -123,8 +124,19 @@ def enable_hiding(legend_to_plot):
         else:
             legend_line.set_alpha(0.2)
         fig.canvas.draw()
+    plt.gcf().canvas.mpl_connect('pick_event', onpick)
+
+def enable_hover():
+    '''enable_hover(None) -> None
+
+    Adds hover effects.
+    '''
     fig = plt.gcf()
-    fig.canvas.mpl_connect('pick_event', onpick)
+    def onhover(event):
+        if event.inaxes:
+            print('x,y,xdata,ydata: {}, {}, {}, {}'.format(event.x,event.y,num2date(event.xdata).date(),event.ydata))
+            fig.canvas.draw_cursor(event)
+    fig.canvas.mpl_connect('motion_notify_event', onhover)
 
 def main():
     # Get data from Google sheet.
@@ -136,7 +148,9 @@ def main():
     plt.subplots()  # initialize plot
     plot_data(dates, prices)
     legend_to_plot = make_and_connect_legend(headers)
+    # Add handlers.
     enable_hiding(legend_to_plot)
+    enable_hover()
     # Show plot.    
     plt.show()
 

@@ -1,3 +1,5 @@
 * TODO Mouse over shows dots on all plots
+** DONE Get hover coordinates
+** Draw cursor at hover coordinates
 * DONE Interactive hiding of plots
 * TODO Option to rescale plot

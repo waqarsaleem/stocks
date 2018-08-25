@@ -11,11 +11,15 @@ from oauth2client import file, client, tools
 import matplotlib.pyplot as plt
 from matplotlib.dates import (MONTHLY, DateFormatter,
                               rrulewrapper, RRuleLocator,
-                              num2date)
+                              num2date, date2num)
 from matplotlib.widgets import CheckButtons
 
 import numpy as np
 import datetime
+
+import bisect
+
+# from snaptocursor import SnaptoCursors
 
 ## Google spreadsheet information.
 # If modifying these scopes, delete the file token.json.
@@ -25,6 +29,30 @@ SPREADSHEET_ID = '1oETKmeOHASnIJL06zQIfdzcM3m4zC6j6vk8C4TkpMGQ'
 RANGE_NAME = 'Prices!A:J'
 
 DATE_FORMAT = "%d-%b-%Y"
+
+
+class SnaptoCursors(object):
+    def __init__(self, ax, x, ys):
+        self.ax = ax
+        right = x[-1]
+        bottom = ys[0,0]
+        self.ly = ax.axvline(color='k', alpha=0.2)  # the vert line
+        self.marker, = ax.plot([right],[bottom], marker="o", color="crimson", zorder=3, linestyle='None', markersize=2)
+        self.x = np.array([date2num(d) for d in x])
+        self.ys = ys
+
+    def mouse_move(self, event):
+        if not event.inaxes:
+            return
+        x, y = event.xdata, event.ydata
+        indx = bisect.bisect(self.x, x)
+        if indx >= len(self.x):
+            return
+        x = self.x[indx]
+        ys = self.ys[indx,:]
+        self.ly.set_xdata(x)
+        self.marker.set_data([x],ys)
+        self.ax.figure.canvas.draw_idle()
 
 def get_gsheet_data_offline():
     s = open('offline_data.txt').read()
@@ -85,6 +113,8 @@ def plot_data(dates, prices):
     ax.xaxis.set_major_locator(loc)
     ax.xaxis.set_major_formatter(formatter)
     ax.xaxis.set_tick_params(rotation=30,labelsize=10)
+    # Snap axis to data.
+    ax.set_xlim(dates[0], dates[-1])
     # Other settings - grid, title.
     ax.grid(b=True, axis='y')
     ax.set_title('Latest Stock Data')
@@ -110,6 +140,7 @@ def enable_hiding(legend_to_plot):
     Uses the mapping in legend_to_plot from legend line to plot line
     to enable interactive hiding of plot lines.
     '''
+    fig = plt.gcf()
     def onpick(event):
         # when legend line is picked, toggle the visibility of the
         # corresponding plot line
@@ -124,19 +155,19 @@ def enable_hiding(legend_to_plot):
         else:
             legend_line.set_alpha(0.2)
         fig.canvas.draw()
-    plt.gcf().canvas.mpl_connect('pick_event', onpick)
+    fig.canvas.mpl_connect('pick_event', onpick)
 
-def enable_hover():
-    '''enable_hover(None) -> None
+# def enable_hover():
+#     '''enable_hover(None) -> None
 
-    Adds hover effects.
-    '''
-    fig = plt.gcf()
-    def onhover(event):
-        if event.inaxes:
-            print('x,y,xdata,ydata: {}, {}, {}, {}'.format(event.x,event.y,num2date(event.xdata).date(),event.ydata))
-            fig.canvas.draw_cursor(event)
-    fig.canvas.mpl_connect('motion_notify_event', onhover)
+#     Adds hover effects.
+#     '''
+#     fig = plt.gcf()
+#     def onhover(event):
+#         if event.inaxes:
+#             print('x,y,xdata,ydata: {}, {}, {}, {}'.format(event.x,event.y,num2date(event.xdata).date(),event.ydata))
+#             # fig.canvas.draw_cursor(event)
+#     fig.canvas.mpl_connect('motion_notify_event', onhover)
 
 def main():
     # Get data from Google sheet.
@@ -148,81 +179,12 @@ def main():
     plt.subplots()  # initialize plot
     plot_data(dates, prices)
     legend_to_plot = make_and_connect_legend(headers)
+    cursors = SnaptoCursors(plt.gca(), dates, prices)
+    plt.connect('motion_notify_event', cursors.mouse_move)
     # Add handlers.
     enable_hiding(legend_to_plot)
-    enable_hover()
     # Show plot.    
     plt.show()
-
-    
-# def check_buttons():
-#     t = np.arange(0.0, 2.0, 0.01)
-#     s0 = np.sin(2*np.pi*t)
-#     s1 = np.sin(4*np.pi*t)
-#     s2 = np.sin(6*np.pi*t)
-
-#     fig, ax = plt.subplots()
-#     l0, = ax.plot(t, s0, visible=False, lw=2)
-#     l1, = ax.plot(t, s1, lw=2)
-#     l2, = ax.plot(t, s2, lw=2)
-#     plt.subplots_adjust(left=0.2)
-
-#     rax = plt.axes([0.05, 0.4, 0.1, 0.15])
-#     check = CheckButtons(rax, ('2 Hz', '4 Hz', '6 Hz'), (False, True, True))
-
-
-#     def func(label):
-#         if label == '2 Hz':
-#             l0.set_visible(not l0.get_visible())
-#         elif label == '4 Hz':
-#             l1.set_visible(not l1.get_visible())
-#         elif label == '6 Hz':
-#             l2.set_visible(not l2.get_visible())
-#         plt.draw()
-#     check.on_clicked(func)
-
-#     plt.show()    
-
-    
-# def event_handling():
-#     t = np.arange(0.0, 0.2, 0.1)
-#     y1 = 2*np.sin(2*np.pi*t)
-#     y2 = 4*np.sin(2*np.pi*2*t)
-
-#     fig, ax = plt.subplots()
-#     ax.set_title('Click on legend line to toggle line on/off')
-#     line1, = ax.plot(t, y1, lw=2, color='red', label='1 HZ')
-#     line2, = ax.plot(t, y2, lw=2, color='blue', label='2 HZ')
-#     leg = ax.legend(loc='upper left', fancybox=True, shadow=True)
-#     leg.get_frame().set_alpha(0.4)
-
-
-#     # we will set up a dict mapping legend line to orig line, and enable
-#     # picking on the legend line
-#     lines = [line1, line2]
-#     lined = dict()
-#     for legline, origline in zip(leg.get_lines(), lines):
-#         legline.set_picker(5)  # 5 pts tolerance
-#         lined[legline] = origline
-
-#     def onpick(event):
-#         # on the pick event, find the orig line corresponding to the
-#         # legend proxy line, and toggle the visibility
-#         legline = event.artist
-#         origline = lined[legline]
-#         vis = not origline.get_visible()
-#         origline.set_visible(vis)
-#         # Change the alpha on the line in the legend so we can see what lines
-#         # have been toggled
-#         if vis:
-#             legline.set_alpha(1.0)
-#         else:
-#             legline.set_alpha(0.2)
-#         fig.canvas.draw()
-
-#     fig.canvas.mpl_connect('pick_event', onpick)
-
-#     plt.show()    
 
 if __name__ == '__main__':
     main()

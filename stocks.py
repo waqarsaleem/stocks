@@ -1,6 +1,9 @@
 # author: Waqar Saleem
 
-# Google sheet access code from https://developers.google.com/sheets/api/quickstart/python
+''' Acknowledgements
+- access Google sheet: https://developers.google.com/sheets/api/quickstart/python
+- matplotlib legend outside axes: https://stackoverflow.com/questions/4700614/how-to-put-the-legend-out-of-the-plot/43439132#43439132
+'''
 
 # To access Google Sheets
 from googleapiclient.discovery import build
@@ -133,8 +136,11 @@ def make_and_connect_legend(headers):
     set as per headers.
     '''
     ax = plt.gca()
-    legend = ax.legend(headers, fancybox=True, shadow=True)
-    
+    # Shrink current axis by 20%
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.9, box.height])
+    # Put a legend to the right of the current axis
+    legend = ax.legend(headers, fancybox=True, shadow=True, loc='center left', bbox_to_anchor=(1, 0.5))
     plot_lines = ax.get_lines()
     legend_lines = legend.get_lines()
     for line in legend_lines:

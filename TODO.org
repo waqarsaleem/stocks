@@ -2,7 +2,7 @@
 ** DONE Get hover coordinates
 ** DONE Draw cursor at hover coordinates
 ** DONE Draw colored cursor at hover coordinates
-** Draw legend outside Axes
+** DONE Draw legend outside Axes
 ** Write test outside Axes
 ** Write cursor data outside Axes
 ** Color cursor data

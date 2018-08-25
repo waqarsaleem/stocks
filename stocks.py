@@ -2,6 +2,11 @@
 
 # Google sheet access code from https://developers.google.com/sheets/api/quickstart/python
 
+# Interactive selection in plots from
+# - http://matplotlib.org/examples/event_handling/legend_picking.html
+# - http://matplotlib.org/examples/widgets/check_buttons.html
+
+
 # To access Google Sheets
 from googleapiclient.discovery import build
 from httplib2 import Http

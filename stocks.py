@@ -26,7 +26,7 @@ import bisect
 SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly'
 # The ID and range of a sample spreadsheet.
 SPREADSHEET_ID = '1oETKmeOHASnIJL06zQIfdzcM3m4zC6j6vk8C4TkpMGQ'
-RANGE_NAME = 'Prices!A:J'
+RANGE_NAME = 'Prices!A:Z'
 
 DATE_FORMAT = "%d-%b-%Y"
 
@@ -34,12 +34,14 @@ DATE_FORMAT = "%d-%b-%Y"
 class SnaptoCursors(object):
     def __init__(self, ax, x, ys):
         self.ax = ax
-        right = x[-1]
-        bottom = ys[0,0]
-        self.ly = ax.axvline(color='k', alpha=0.2)  # the vert line
-        self.marker, = ax.plot([right],[bottom], marker="o", color="crimson", zorder=3, linestyle='None', markersize=2)
         self.x = np.array([date2num(d) for d in x])
         self.ys = ys
+        self.ly = ax.axvline(color='k', alpha=0.2)  # the vert line
+        self.size = len(ys[0])
+        self.colors = [l.get_color() for l in ax.get_lines()]
+        xs = [x[-1]]*self.size
+        ys = ys[-1,:]
+        self.markers = ax.scatter(xs, ys, marker="o", color=self.colors, zorder=3)
 
     def mouse_move(self, event):
         if not event.inaxes:
@@ -49,9 +51,14 @@ class SnaptoCursors(object):
         if indx >= len(self.x):
             return
         x = self.x[indx]
-        ys = self.ys[indx,:]
         self.ly.set_xdata(x)
-        self.marker.set_data([x],ys)
+        ys = self.ys[indx,:]
+        self.markers.remove()
+        self.markers = self.ax.scatter([x]*self.size, ys, marker="o", color=self.colors, zorder=3)
+        
+        # self.markers.set_data([x]*self.size, ys)
+        # for m,y in zip(self.markers,ys):
+        #     m.set_data([x],[y])
         self.ax.figure.canvas.draw_idle()
 
 def get_gsheet_data_offline():

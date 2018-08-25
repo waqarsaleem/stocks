@@ -1,5 +1,10 @@
 * TODO Mouse over shows dots on all plots
 ** DONE Get hover coordinates
-** Draw cursor at hover coordinates
+** DONE Draw cursor at hover coordinates
+** DONE Draw colored cursor at hover coordinates
+** Draw legend outside Axes
+** Write test outside Axes
+** Write cursor data outside Axes
+** Color cursor data
 * DONE Interactive hiding of plots
 * TODO Option to rescale plot

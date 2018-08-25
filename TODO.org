@@ -1,0 +1,3 @@
+* Mouse over shows dots on all plots
+* Interactive hiding of plots
+* Option to rescale plot

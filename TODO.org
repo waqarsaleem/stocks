@@ -1,3 +1,3 @@
-* Mouse over shows dots on all plots
-* Interactive hiding of plots
-* Option to rescale plot
+* TODO Mouse over shows dots on all plots
+* DONE Interactive hiding of plots
+* TODO Option to rescale plot

@@ -1,3 +1,7 @@
+# author: Waqar Saleem
+
+# Google sheet access code from https://developers.google.com/sheets/api/quickstart/python
+
 # To access Google Sheets
 from googleapiclient.discovery import build
 from httplib2 import Http
@@ -72,7 +76,7 @@ def plot_data(dates, prices):
     '''
     # Plot the data
     ax = plt.gca()
-    lines = ax.plot_date(dates, prices, linestyle='solid', marker='None')
+    lines = ax.plot_date(dates, prices, linestyle='solid', marker='None', picker=5)
     # Format dates on x-axis.
     rule = rrulewrapper(MONTHLY, interval=2)
     loc = RRuleLocator(rule)
@@ -92,10 +96,35 @@ def make_and_connect_legend(headers):
     '''
     ax = plt.gca()
     legend = ax.legend(headers, fancybox=True, shadow=True)
+    
     plot_lines = ax.get_lines()
     legend_lines = legend.get_lines()
-    map(lambda l:l.set_picker(5), legend_lines)
-    return dict(zip(plot_lines, legend_lines))
+    for line in legend_lines:
+        line.set_picker(5)  # 5 pts tolerance
+    return dict(zip(legend_lines, plot_lines))
+
+def enable_hiding(legend_to_plot):
+    '''enable_hiding(dict) -> None
+
+    Uses the mapping in legend_to_plot from legend line to plot line
+    to enable interactive hiding of plot lines.
+    '''
+    def onpick(event):
+        # when legend line is picked, toggle the visibility of the
+        # corresponding plot line
+        legend_line = event.artist
+        plot_line = legend_to_plot[legend_line]
+        vis = not plot_line.get_visible()
+        plot_line.set_visible(vis)
+        # Change the alpha on the line in the legend so we can see
+        # what lines have been toggled
+        if vis:
+            legend_line.set_alpha(1.0)
+        else:
+            legend_line.set_alpha(0.2)
+        fig.canvas.draw()
+    fig = plt.gcf()
+    fig.canvas.mpl_connect('pick_event', onpick)
 
 def main():
     # Get data from Google sheet.
@@ -103,41 +132,42 @@ def main():
     if not data:
         return
     dates, prices, headers = data
-    # Plot data.
+    # Prepare plot.
     plt.subplots()  # initialize plot
     plot_data(dates, prices)
     legend_to_plot = make_and_connect_legend(headers)
-        
+    enable_hiding(legend_to_plot)
+    # Show plot.    
     plt.show()
 
     
-def check_buttons():
-    t = np.arange(0.0, 2.0, 0.01)
-    s0 = np.sin(2*np.pi*t)
-    s1 = np.sin(4*np.pi*t)
-    s2 = np.sin(6*np.pi*t)
+# def check_buttons():
+#     t = np.arange(0.0, 2.0, 0.01)
+#     s0 = np.sin(2*np.pi*t)
+#     s1 = np.sin(4*np.pi*t)
+#     s2 = np.sin(6*np.pi*t)
 
-    fig, ax = plt.subplots()
-    l0, = ax.plot(t, s0, visible=False, lw=2)
-    l1, = ax.plot(t, s1, lw=2)
-    l2, = ax.plot(t, s2, lw=2)
-    plt.subplots_adjust(left=0.2)
+#     fig, ax = plt.subplots()
+#     l0, = ax.plot(t, s0, visible=False, lw=2)
+#     l1, = ax.plot(t, s1, lw=2)
+#     l2, = ax.plot(t, s2, lw=2)
+#     plt.subplots_adjust(left=0.2)
 
-    rax = plt.axes([0.05, 0.4, 0.1, 0.15])
-    check = CheckButtons(rax, ('2 Hz', '4 Hz', '6 Hz'), (False, True, True))
+#     rax = plt.axes([0.05, 0.4, 0.1, 0.15])
+#     check = CheckButtons(rax, ('2 Hz', '4 Hz', '6 Hz'), (False, True, True))
 
 
-    def func(label):
-        if label == '2 Hz':
-            l0.set_visible(not l0.get_visible())
-        elif label == '4 Hz':
-            l1.set_visible(not l1.get_visible())
-        elif label == '6 Hz':
-            l2.set_visible(not l2.get_visible())
-        plt.draw()
-    check.on_clicked(func)
+#     def func(label):
+#         if label == '2 Hz':
+#             l0.set_visible(not l0.get_visible())
+#         elif label == '4 Hz':
+#             l1.set_visible(not l1.get_visible())
+#         elif label == '6 Hz':
+#             l2.set_visible(not l2.get_visible())
+#         plt.draw()
+#     check.on_clicked(func)
 
-    plt.show()    
+#     plt.show()    
 
     
 # def event_handling():

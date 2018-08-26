@@ -1,10 +1,17 @@
-* TODO Mouse over shows dots on all plots
-** DONE Get hover coordinates
-** DONE Draw cursor at hover coordinates
-** DONE Draw colored cursor at hover coordinates
-** DONE Draw legend outside Axes
-** Write test outside Axes
-** Write cursor data outside Axes
-** Color cursor data
-* DONE Interactive hiding of plots
+* DONE See all stocks
+** DONE Interactive hide/show stocks
+** TODO See stock details
+** TODO See stock trade price
+* TODO Snap cursor
+** TODO Get hover coordinates
+** TODO Draw cursor at hover coordinates
+** TODO Draw colored cursor at hover coordinates
+** TODO Draw legend outside Axes
+** TODO Write test outside Axes
+** TODO Write cursor data outside Axes
+** TODO Color text from cursor data
 * TODO Option to rescale plot
+** DONE Rescale plot when data is added/removed
+** TODO Animate rescaling
+* Select-deselect all visible stocks
+* Select time portion

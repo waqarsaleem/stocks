@@ -32,15 +32,17 @@ class Stock(object):
         self.code = code
         self.prices = None
         self.cost_price = 0
-        self.name = ""
-        self.sector = ""
-
+        self.name = self.sector = ""
+        self.buy_dates, self.buy_rates = [], []
+        self.sell_dates, self.sell_rates = [], []
+        
 class StockPlot(object):
     def __init__(self, code):
         self.code = code
-        self.plot_line = self.legend_line = self.cost_line = None
+        self.plot_line = self.legend_line = None
+        self.buy_line = self.sell_line = self.cost_line = None
         self.is_removed = False
-
+        
     def toggle(self):
         if self.is_removed:
             self.add()
@@ -48,19 +50,24 @@ class StockPlot(object):
             self.remove()
             
     def remove(self):
-        if not self.is_removed:
-            self.plot_line.remove()
-            self.legend_line.set_alpha(0.2)
-            self.cost_line.remove()
-            self.is_removed = True
+        if self.is_removed:
+            return
+        for l in [self.plot_line, self.cost_line, self.buy_line,
+                  self.sell_line]:
+            l.remove()
+        self.legend_line.set_alpha(0.2)
+        self.is_removed = True
 
     def add(self):
-        if self.is_removed:
-            ax = plt.gca()
-            self.plot_line = ax.add_line(self.plot_line)
-            self.legend_line.set_alpha(1.0)
-            self.cost_line = ax.add_line(self.cost_line)
-            self.is_removed = False
+        if not self.is_removed:
+            return
+        ax = plt.gca()
+        lines = [self.plot_line, self.cost_line, self.buy_line,
+                 self.sell_line]
+        for i in range(len(lines)):
+            lines[i] = ax.add_line(lines[i])
+        self.legend_line.set_alpha(1.0)
+        self.is_removed = False
         
 def get_gsheet_data_offline():
     s = open('offline_data.txt').read()
@@ -84,7 +91,7 @@ def get_gsheet_data():
         creds = tools.run_flow(flow, store)
     service = build('sheets', 'v4', http=creds.authorize(Http()))
     # Call the Sheets API
-    range_names = ['Portfolio!A:H', 'Prices!A:ZZ', 'Details!A:ZZ']
+    range_names = ['Portfolio!A:H', 'Trades!A:I', 'Prices!A:ZZ', 'Details!A:ZZ']
     lst = []
     for range_name in range_names:
         result = service.spreadsheets().values()
@@ -104,14 +111,23 @@ def get_data():
     against dates, headers is a 1D array for the legend.
     '''
     print("Getting data from Google sheet...", flush=True, end="")
-    (portfolio, prices, details) = get_gsheet_data()  # 2D lists
-    if len(lst) < 3:
+    lst = get_gsheet_data()
+    if len(lst) < 4:
         print("Incomplete data received.")
         return
     print("done")
+    portfolio, trades, prices, details = [np.array(l) for l in lst]
+    code_stock = get_stocks(portfolio)
+    dates = get_dates(prices)
+    add_price_history(prices, code_stock)
+    add_names(details, code_stock)
+    add_trade_info(trades, code_stock)
+    # Return dates and Stock objects.
+    return dates, code_stock
+
+def get_stocks(portfolio):
     # Create Stock objects using code, cost, and sector information
     # from portfolio.
-    portfolio = np.array(portfolio)
     code_col_index = np.nonzero(portfolio[0]=="Code")[0][0]
     blank_row_index = np.nonzero(portfolio[:,code_col_index]=="")[0][0]
     portfolio = portfolio[:blank_row_index]
@@ -124,26 +140,60 @@ def get_data():
         stock.cost_price = float(cost)
         stock.sector = sector
         code_stock[code] = stock
-    # Read dates and add price history to Stock objects.
-    prices = np.array(prices)
+    return code_stock
+
+def get_dates(prices):
+    # Extract dates.
     date_format = "%d-%b-%Y"
     dates = [dt.datetime.strptime(d, date_format) for d in prices[1:,0]]
+    # dates = np.array([date2num(d) for d in dates])
+    return np.array(dates)
+
+def add_price_history(prices, code_stock):
+    # Add price history to Stock objects.
     num_codes = len(prices[0])
     for code_idx in range(1,num_codes):
         column = prices[:,code_idx]
         stock = code_stock[column[0]]
         stock.prices = column[1:].astype(float)
+
+def add_names(details, code_stock):
     # Add name to Stock objects.
-    details = np.array(details)
     code_col_index = np.nonzero(details[0]=="Code")[0][0]
     name_col_index = np.nonzero(details[0]=="Name")[0][0]
     indexes = [code_col_index, name_col_index]
     for code, name in details[1:,indexes]:
         stock = code_stock[code]
-        stock.name = name    
-    # Return Stock objects.
-    return dates, code_stock
-
+        stock.name = name
+        
+def add_trade_info(trades, code_stock):
+    # Add trade information to Stock objects.
+    # Get relevant colums.
+    index = np.nonzero(trades[0]=="Date")[0][0]
+    df = "%d-%b-%Y"
+    dates = [dt.datetime.strptime(d, df) for d in trades[1:,index]]
+    index = np.nonzero(trades[0]=="Code")[0][0]
+    codes = trades[1:,index]
+    index = np.nonzero(trades[0]=="Rate")[0][0]
+    rates = trades[1:,index].astype(float)
+    index = np.nonzero(trades[0]=="Bought")[0][0]
+    bought = trades[1:,index].astype(int)
+    # Store buy/sell information from columns in Stock objects.
+    for code,stock in code_stock.items():
+        buy, sell = [], []
+        rows = np.nonzero(codes==code)[0]
+        for row in rows:
+            qty = bought[row]
+            item = (dates[row], rates[row])
+            if qty > 0:
+                buy.append(item)
+            else:
+                sell.append(item)
+        if buy:
+            stock.buy_dates, stock.buy_rates = zip(*buy)
+        if sell:
+            stock.sell_dates, stock.sell_rates = zip(*sell)
+            
 def plot_data(dates, code_stock):
     # Plot the data
     ax = plt.gca()
@@ -154,8 +204,14 @@ def plot_data(dates, code_stock):
         line, = ax.plot_date(dates, stock.prices, label=code,
                              linestyle='solid', marker='None', picker=5)
         stockplot.plot_line = line
-        line = ax.axhline(y=stock.cost_price, color=line.get_color(),
-                          alpha = 0.7)
+        color=line.get_color()
+        line, = ax.plot_date(stock.buy_dates, stock.buy_rates,
+                             marker='o', markersize = 5, color=color)
+        stockplot.buy_line = line
+        line, = ax.plot_date(stock.sell_dates, stock.sell_rates,
+                             marker='s', markersize = 5, color=color)
+        stockplot.sell_line = line
+        line = ax.axhline(y=stock.cost_price, color=color, alpha = 0.7)
         stockplot.cost_line = line
         code_stockplot[code] = stockplot
     # Format dates on x-axis.
@@ -166,9 +222,8 @@ def plot_data(dates, code_stock):
     ax.xaxis.set_major_locator(loc)
     ax.xaxis.set_major_formatter(formatter)
     ax.xaxis.set_tick_params(rotation=30,labelsize=10)
-    # Snap x-axis to data.
+    # Other settings - tight axes, grid, title.
     ax.set_xlim(dates[0], dates[-1])
-    # Other settings - grid, title.
     ax.grid(b=True, axis='y')
     ax.set_title('Stock Price History')
     return code_stockplot
@@ -239,7 +294,8 @@ def enable_hiding(code_stockplot):
         # recompute the ax.dataLim
         ax.relim()
         # update ax.viewLim using the new dataLim
-        ax.autoscale_view(scalex=False)
+        # ax.autoscale_view(scalex=False)
+        ax.autoscale()
         fig.canvas.draw_idle()
     fig.canvas.mpl_connect('pick_event', onpick)
 
